@@ -5,7 +5,7 @@
 -- The numbers are stored in base 10.
 module Data.Number.BigFloat(
     BigFloat,
-    Epsilon, Eps1, EpsDiv10, Prec10, Prec50, PrecPlus20
+    Epsilon, Eps
     ) where
 
 import Numeric(showSigned)

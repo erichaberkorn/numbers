@@ -1,28 +1,29 @@
-{-# LANGUAGE
-    EmptyDataDecls,
-    GeneralizedNewtypeDeriving,
-    ScopedTypeVariables,
-    Rank2Types #-}
+{-# LANGUAGE DataKinds                  #-}
+{-# LANGUAGE DeriveDataTypeable         #-}
+{-# LANGUAGE EmptyDataDecls             #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE KindSignatures             #-}
+{-# LANGUAGE Rank2Types                 #-}
+{-# LANGUAGE ScopedTypeVariables        #-}
 
 -- | Numbers with a fixed number of decimals.
 module Data.Number.Fixed(
     Fixed,
-    Epsilon, Eps1, EpsDiv10, Prec10, Prec50, PrecPlus20,
+    Epsilon, Eps, EpsDiv10, PrecPlus20, Eps,
     convertFixed, dynamicEps, precision, with_added_precision) where
-import Numeric
-import Data.Char
-import Data.Ratio
+import           Data.Char
+import           Data.Data
 import qualified Data.Number.FixedFunctions as F
+import           Data.Proxy                 ()
+import           Data.Ratio
+import           Data.Typeable              ()
+import           GHC.TypeLits
+import           Numeric
 
 -- | The 'Epsilon' class contains the types that can be used to determine the
 -- precision of a 'Fixed' number.
 class Epsilon e where
     eps :: e -> Rational
-
--- | An epsilon of 1, i.e., no decimals.
-data Eps1
-instance Epsilon Eps1 where
-    eps _ = 1
 
 -- | A type construct that gives one more decimals than the argument.
 data EpsDiv10 p
@@ -30,21 +31,6 @@ instance (Epsilon e) => Epsilon (EpsDiv10 e) where
     eps e = eps (un e) / 10
        where un :: EpsDiv10 e -> e
              un = undefined
-
--- | Ten decimals.
-data Prec10
-instance Epsilon Prec10 where
-    eps _ = 1e-10
-
--- | 50 decimals.
-data Prec50
-instance Epsilon Prec50 where
-    eps _ = 1e-50
-
--- | 500 decimals.
-data Prec500
-instance Epsilon Prec500 where
-    eps _ = 1e-500
 
 -- A type that gives 20 more decimals than the argument.
 data PrecPlus20 e
@@ -56,7 +42,7 @@ instance (Epsilon e) => Epsilon (PrecPlus20 e) where
 -----------
 
 -- The type of fixed precision numbers.  The type /e/ determines the precision.
-newtype Fixed e = F Rational deriving (Eq, Ord, Enum, Real, RealFrac)
+newtype Fixed e = F Rational deriving (Eq, Ord, Enum, Real, RealFrac, Data, Typeable)
 
 -- Get the accuracy (the epsilon) of the type.
 precision :: (Epsilon e) => Fixed e -> Rational
@@ -111,8 +97,8 @@ instance (Epsilon e) => Read (Fixed e) where
 instance (Epsilon e) => Floating (Fixed e) where
     pi = toFixed0 F.pi
     sqrt = toFixed1 F.sqrt
-    exp x = with_added_precision r (convertFixed . (toFixed1 F.exp)) x where
-      r = if x < 0 then 1 else 0.1 ^ (ceiling (x * 0.45))
+    exp x = with_added_precision r (convertFixed . toFixed1 F.exp) x where
+      r = if x < 0 then 1 else 0.1 ^ ceiling (x * 0.45)
     log = toFixed1 F.log
     sin = toFixed1 F.sin
     cos = toFixed1 F.cos
@@ -154,7 +140,7 @@ instance (Epsilon e) => RealFloat (Fixed e) where
 
 -- The call @dynmicEps r f v@ evaluates @f v@ to a precsion of @r@.
 dynamicEps :: forall a . Rational -> (forall e . Epsilon e => Fixed e -> a) -> Rational -> a
-dynamicEps r f v = loop (undefined :: Eps1)
+dynamicEps r f v = loop (undefined :: Eps 0)
   where loop :: forall x . (Epsilon x) => x -> a
         loop e = if eps e <= r then f (fromRational v :: Fixed x) else loop (undefined :: EpsDiv10 x)
 
@@ -163,3 +149,11 @@ dynamicEps r f v = loop (undefined :: Eps1)
 with_added_precision :: forall a f.(Epsilon f) => Rational -> (forall e.(Epsilon e) => Fixed e -> a) -> Fixed f -> a
 with_added_precision r f v = dynamicEps (p*r) f (toRational v) where
   p = precision v
+
+data Eps (n :: Nat) = Eps
+  deriving (Data, Typeable, Eq)
+
+instance (KnownNat n) => Epsilon (Eps n) where
+  eps _ = toRational (10 ^^ negate digits)
+    where
+      digits = natVal (Proxy :: Proxy n)

@@ -33,13 +33,15 @@ Library
   Build-Depends:
     base >= 3 && < 5
 
-  Exposed-modules:
-    Data.Number.Symbolic Data.Number.Dif
-    Data.Number.CReal Data.Number.Fixed
-    Data.Number.Interval Data.Number.BigFloat
-    Data.Number.Natural
-    Data.Number.Vectorspace
-    Data.Number.FixedFunctions
+  Exposed-modules: Data.Number.Symbolic
+                   Data.Number.Dif
+                   Data.Number.CReal
+                   Data.Number.Fixed
+                   Data.Number.Interval
+                   Data.Number.BigFloat
+                   Data.Number.Natural
+                   Data.Number.Vectorspace
+                   Data.Number.FixedFunctions
 
   Ghc-Options:
     -Wall
@@ -53,6 +55,9 @@ Library
 test-suite testsuite
   type: exitcode-stdio-1.0
   main-is: TestSuite.hs
+  Other-modules: Data.Number.BigFloat
+                 Data.Number.Fixed
+                 Data.Number.FixedFunctions
   build-depends:
     base                        >= 3 && < 5,
     -- Additional test dependencies.
